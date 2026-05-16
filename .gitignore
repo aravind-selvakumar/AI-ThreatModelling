@@ -1,0 +1,14 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs/AI-ThreatModelling/CopilotIndices/0.2.1657.32929
+/.vs
+/backend/app/api/routes/__pycache__
+/backend/app/api/__pycache__
+/backend/app/auth/__pycache__
+/backend/app/core/__pycache__
+/backend/app/db/__pycache__
+/backend/app/ingestion/__pycache__
+/backend/app/__pycache__
+/.env
