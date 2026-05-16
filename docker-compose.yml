@@ -1,0 +1,73 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-threatmod}
+      POSTGRES_USER: ${POSTGRES_USER:-tme}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tme_secret}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tme} -d ${POSTGRES_DB:-threatmod}"]
+      interval: 5s
+      retries: 5
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tme}:${POSTGRES_PASSWORD:-tme_secret}@postgres:5432/${POSTGRES_DB:-threatmod}
+      DATABASE_URL_SYNC: postgresql+psycopg2://${POSTGRES_USER:-tme}:${POSTGRES_PASSWORD:-tme_secret}@postgres:5432/${POSTGRES_DB:-threatmod}
+      PGVECTOR_CONNECTION_STRING: postgresql+psycopg2://${POSTGRES_USER:-tme}:${POSTGRES_PASSWORD:-tme_secret}@postgres:5432/${POSTGRES_DB:-threatmod}
+      OLLAMA_BASE_URL: http://ollama:11434
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      EMBEDDING_MODEL: nomic-embed-text
+      LLM_MODEL: llama3.2:3b
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      API_BASE_URL: http://backend:8000
+    ports:
+      - "${FRONTEND_PORT:-8501}:8501"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  ollama_data:
